@@ -135,9 +135,6 @@ const App: React.FC = () => {
 
       const savedTopics = localStorage.getItem(`eq_grammar_${currentUser.id}`);
       setGrammarTopics(savedTopics ? JSON.parse(savedTopics) : []);
-
-      localStorage.setItem('eq_active_session', JSON.stringify(currentUser));
-      localStorage.setItem(`eq_user_profile_${currentUser.email}`, JSON.stringify(currentUser));
     }
     // תלות רק ב-id (לא באובייקט currentUser כולו) בכוונה: האפקט הזה אמור לרוץ
     // כשמתחלף המשתמש (התחברות/התנתקות), לא בכל עדכון XP/היסטוריה/סטריק.
@@ -146,6 +143,18 @@ const App: React.FC = () => {
     // הישן ודורס בשקט כל setWords שרץ באותה הפעולה (למשל תיוג "תרגול טעויות").
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
+
+  // שמירת פרופיל המשתמש (eq_active_session) בנפרד - בכוונה על כל שינוי באובייקט
+  // currentUser (לא רק id), כדי ש-XP/גיל שהוגדר ב-onboarding/סטריק/קושי יישמרו
+  // ויחזרו נכון בפתיחה הבאה. בלי זה (כשהיה מאוחד עם האפקט שמעליו) - restart של
+  // האתר אחרי סיום Onboarding היה מחזיר את הילד שוב למסך "מי הגיבור החדש?" כי
+  // eq_active_session נשאר עם הגרסה הישנה (age:0) שנכתבה לפני שה-onboarding הסתיים.
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('eq_active_session', JSON.stringify(currentUser));
+      localStorage.setItem(`eq_user_profile_${currentUser.email}`, JSON.stringify(currentUser));
+    }
+  }, [currentUser]);
 
   // שמירת מילים בנפרד
   useEffect(() => {
