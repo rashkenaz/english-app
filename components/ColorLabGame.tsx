@@ -133,17 +133,24 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
       </div>
 
       <div className="word-card w-full p-8 flex flex-col items-center gap-4">
-        {/* הצבע האמיתי של האובייקט מוצג כאן תמיד, מההתחלה - זה בדיוק המידע שהילד
-            צריך כדי לדעת מה לענות. בלי זה (כמו שהיה) השאלה "what color is the X"
-            הייתה חסרת מענה הגיוני - אין "צבע נכון" אמיתי למרקר באופן שרירותי */}
+        {/* האובייקט עצמו (לא ריבוע מסביבו) צריך להראות בצבע היעד - אחרת הילד
+            קורא את זה כ"יש מסגרת צבעונית סביב חפץ ניטרלי", לא "החפץ הזה בצבע הזה".
+            אימוג'י הוא גרפיקה צבעונית קבועה שא"א לצבוע ישירות עם background, אז
+            הופכים אותו לגווני אפור ואז "צובעים" אותו עם mix-blend-mode: color -
+            זה משמר את הצללים/הצורה אבל נותן לו את הגוון של צבע היעד. */}
         <div
-          className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl transition-all duration-500 border-4"
+          className="w-24 h-24 rounded-3xl flex items-center justify-center bg-white transition-all duration-500 border-4"
           style={{
-            backgroundColor: round.target.hex,
-            borderColor: isCorrect === true ? '#22c55e' : isCorrect === false ? '#ef4444' : (round.target.hex === '#FFFFFF' ? '#cbd5e1' : round.target.hex),
+            borderColor: isCorrect === true ? '#22c55e' : isCorrect === false ? '#ef4444' : '#e2e8f0',
           }}
         >
-          {round.thing.emoji || '❓'}
+          <span className="relative inline-flex items-center justify-center text-5xl leading-none">
+            <span style={{ filter: 'grayscale(1) contrast(1.15)' }}>{round.thing.emoji || '❓'}</span>
+            <span
+              className="absolute -inset-2 rounded-full pointer-events-none"
+              style={{ backgroundColor: round.target.hex, mixBlendMode: 'color' }}
+            />
+          </span>
         </div>
         <p className="text-xl sm:text-2xl font-black text-center en-font" dir="ltr">
           {sentence} <span className={`inline-block px-2 border-b-4 ${isCorrect === true ? 'border-green-500 text-green-600' : isCorrect === false ? 'border-red-500 text-red-600' : 'border-fuchsia-400 text-fuchsia-600'}`}>{selected || '___'}</span>
