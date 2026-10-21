@@ -119,8 +119,6 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
     );
   }
 
-  const selectedHex = selected ? round.options.find(o => o.en === selected)?.hex : undefined;
-
   return (
     <div className="max-w-lg mx-auto p-4 sm:p-8 glass-panel rounded-3xl shadow-2xl flex flex-col items-center gap-5">
       <div className="w-full flex items-center justify-between gap-2">
@@ -132,11 +130,14 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
       </div>
 
       <div className="word-card w-full p-8 flex flex-col items-center gap-4">
+        {/* הצבע האמיתי של האובייקט מוצג כאן תמיד, מההתחלה - זה בדיוק המידע שהילד
+            צריך כדי לדעת מה לענות. בלי זה (כמו שהיה) השאלה "what color is the X"
+            הייתה חסרת מענה הגיוני - אין "צבע נכון" אמיתי למרקר באופן שרירותי */}
         <div
           className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl transition-all duration-500 border-4"
           style={{
-            backgroundColor: isCorrect === true ? (selectedHex || '#fff') : '#f1f5f9',
-            borderColor: isCorrect === true ? (selectedHex || '#94a3b8') : isCorrect === false ? '#ef4444' : '#94a3b8',
+            backgroundColor: round.target.hex,
+            borderColor: isCorrect === true ? '#22c55e' : isCorrect === false ? '#ef4444' : (round.target.hex === '#FFFFFF' ? '#cbd5e1' : round.target.hex),
           }}
         >
           {round.thing.emoji || '❓'}
@@ -154,7 +155,8 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
               isCorrect === false && opt.en === selected ? 'ring-4 ring-red-400' : ''
             }`}
             style={{ backgroundColor: opt.hex, borderColor: opt.hex === '#FFFFFF' ? '#cbd5e1' : opt.hex }}>
-            <span className="text-sm sm:text-base font-black text-slate-900 bg-white/80 rounded-full px-3 py-1" dir="rtl">{opt.he}</span>
+            {/* תווית באנגלית בכוונה - זו אפליקציה ללימוד אנגלית, התרגום לעברית לא מלמד את מילת הצבע באנגלית */}
+            <span className="text-sm sm:text-base font-black text-slate-900 bg-white/80 rounded-full px-3 py-1 en-font" dir="ltr">{opt.en.charAt(0).toUpperCase() + opt.en.slice(1)}</span>
           </button>
         ))}
       </div>
