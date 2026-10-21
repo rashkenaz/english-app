@@ -84,7 +84,17 @@ const App: React.FC = () => {
   const [topicInput, setTopicInput] = useState('');
   const [creatingTopic, setCreatingTopic] = useState(false);
   const grammarPhotoInputRef = useRef<HTMLInputElement>(null);
+  const grammarSectionRef = useRef<HTMLDivElement>(null);
   const currentFocusTopic = grammarTopics.find(t => t.isCurrentFocus) || null;
+
+  const openGrammarPractice = () => {
+    if (currentFocusTopic) {
+      setActiveGame('GRAMMAR');
+    } else {
+      // אין עדיין נושא דקדוק פעיל - גוללים לכרטיס ההוספה במקום לפתוח משחק ריק
+      grammarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const speak = useCallback((text: string, lang: 'he' | 'en' = 'en') => {
     if (!window.speechSynthesis) return;
@@ -778,6 +788,7 @@ const App: React.FC = () => {
                   { onClick: () => setActiveGame('SOUNDCATCHER'), color: 'bg-cyan-500 border-cyan-700', emoji: '🎣', label: 'תופס צלילים' },
                   { onClick: startNameMatchGame, color: 'bg-purple-500 border-purple-700', emoji: '🧠', label: 'התאמת שמות' },
                   { onClick: startQuizRace, color: 'bg-orange-500 border-orange-700', emoji: '⏱️', label: 'מרוץ חידון' },
+                  { onClick: openGrammarPractice, color: 'bg-violet-500 border-violet-700', emoji: '📝', label: currentFocusTopic ? currentFocusTopic.displayNameHe : 'דקדוק' },
                 ].map((g, i) => (
                   <button key={i} onClick={g.onClick} className={`roblox-btn ${g.color} flex flex-col items-center justify-center p-3 gap-1 text-white`}>
                     <span className="text-2xl">{g.emoji}</span>
@@ -804,7 +815,7 @@ const App: React.FC = () => {
             )}
 
             {/* מה לומדים היום בכיתה */}
-            <div className="glass-panel p-5 rounded-3xl" dir="rtl">
+            <div ref={grammarSectionRef} className="glass-panel p-5 rounded-3xl" dir="rtl">
               <h3 className="text-xl gaming-font text-white mb-3">מה לומדים היום בכיתה? 📝</h3>
               <div className="flex gap-2 mb-2">
                 <input
