@@ -13,6 +13,7 @@ import { WordHuntGame } from './components/WordHuntGame';
 import { SoundCatcherGame } from './components/SoundCatcherGame';
 import { generateGrammarExercises } from './services/geminiService';
 import { CURRICULUM_VOCAB, NAMES } from './data/curriculum';
+import { computeDifficultyAdjustment, suggestVarietyGame } from './data/adaptiveLogic';
 
 const INITIAL_WORDS_LIST: WordEntry[] = [
   { id: '1', english: 'Apple', hebrew: 'תפוח', masteryLevel: 0, lastSeen: Date.now(), createdAt: Date.now(), tags: [] },
@@ -77,7 +78,7 @@ const App: React.FC = () => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'SELECTED' | 'NEW' | 'STRUGGLED' | 'FAVORITES' | 'WRITING' | 'REVIEW'>('ALL');
   const [translationDirection, setTranslationDirection] = useState<TranslationDirection>('EN_TO_HE');
   const [activeGame, setActiveGame] = useState<GameState['type']>('IDLE');
-  const [gameResults, setGameResults] = useState<{score: number, mistakes: number, xpEarned: number, missedIds: string[], totalItems: number, maxCombo: number, accuracy: number, stars: number} | null>(null);
+  const [gameResults, setGameResults] = useState<{score: number, mistakes: number, xpEarned: number, missedIds: string[], totalItems: number, maxCombo: number, accuracy: number, stars: number, difficultyChange?: { from: number, to: number, direction: 'up' | 'down' }} | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
   const [grammarTopics, setGrammarTopics] = useState<GrammarTopic[]>([]);
@@ -427,6 +428,20 @@ const App: React.FC = () => {
     const newXp = currentUser.xp + earnedXp;
     const today = todayStr();
     const isNewDay = currentUser.dailyProgressDate !== today;
+    // סשן תרגול-טעויות/כתיבה ממוקד במכוון מרוכז במילים קשות - לא אמור למשוך
+    // את הקושי האדפטיבי כלפי מטה כאילו זו רמת היכולת הכללית של הילד
+    const isTargetedReview = filterMode === 'REVIEW' || filterMode === 'WRITING';
+
+    const newHistory: GameActivity[] = [{
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: Date.now(),
+      gameType: activeGame,
+      score, mistakes, xpEarned: earnedXp,
+      totalItems, missedCount: missedIds.length,
+      isTargetedReview,
+    }, ...currentUser.history].slice(0, 50);
+
+    const difficultyAdjustment = computeDifficultyAdjustment(newHistory, currentUser.difficulty, currentUser.lastDifficultyChangeAt);
 
     const updatedUser: UserProfile = {
       ...currentUser,
@@ -437,13 +452,8 @@ const App: React.FC = () => {
       // כמו הסיפור (6 שאלות נכון/לא נכון + 15 מילים למיון = 21 פריטים בסשן אחד!)
       // היה ממלא את כל היעד היומי (10) בבת אחת, אחרי פעילות אחת קצרה - לא זה הרעיון.
       dailyProgressCount: (isNewDay ? 0 : currentUser.dailyProgressCount) + Math.min(totalItems, DAILY_GOAL),
-      history: [{
-        id: Math.random().toString(36).substr(2, 9),
-        timestamp: Date.now(),
-        gameType: activeGame,
-        score, mistakes, xpEarned: earnedXp,
-        totalItems, missedCount: missedIds.length,
-      }, ...currentUser.history].slice(0, 50)
+      history: newHistory,
+      ...(difficultyAdjustment ? { difficulty: difficultyAdjustment.to, lastDifficultyChangeAt: Date.now() } : {}),
     };
     setCurrentUser(updatedUser);
 
@@ -466,7 +476,10 @@ const App: React.FC = () => {
 
     const accuracy = totalItems > 0 ? Math.round(((totalItems - missedIds.length) / totalItems) * 100) : 100;
     const stars = accuracy >= 90 ? 3 : accuracy >= 70 ? 2 : 1;
-    setGameResults({ score, mistakes, xpEarned: earnedXp, missedIds, totalItems, maxCombo, accuracy, stars });
+    setGameResults({
+      score, mistakes, xpEarned: earnedXp, missedIds, totalItems, maxCombo, accuracy, stars,
+      difficultyChange: difficultyAdjustment ? { from: currentUser.difficulty, to: difficultyAdjustment.to, direction: difficultyAdjustment.direction } : undefined,
+    });
     setStruggledWordIds(missedIds);
     setActiveGame('IDLE');
     speak(`Finished! You earned ${earnedXp} XP.`);
@@ -475,7 +488,8 @@ const App: React.FC = () => {
   const adjustDifficulty = (delta: number) => {
     if (!currentUser) return;
     const newDiff = Math.max(1, Math.min(5, currentUser.difficulty + delta));
-    setCurrentUser({ ...currentUser, difficulty: newDiff });
+    // גם שינוי ידני מאפס את ההיסטרזיס - כך שהמערכת לא "נלחמת" מיד בבחירה של ההורה/ילד
+    setCurrentUser({ ...currentUser, difficulty: newDiff, lastDifficultyChangeAt: Date.now() });
   };
 
   const filteredWords = words.filter(w => {
@@ -492,6 +506,7 @@ const App: React.FC = () => {
   const totalAttempted = currentUser?.history.reduce((s, h) => s + (h.totalItems || 0), 0) || 0;
   const totalMissed = currentUser?.history.reduce((s, h) => s + (h.missedCount ?? h.mistakes), 0) || 0;
   const overallAccuracy = totalAttempted > 0 ? Math.max(0, Math.round(((totalAttempted - totalMissed) / totalAttempted) * 100)) : 0;
+  const varietySuggestion = currentUser ? suggestVarietyGame(currentUser.history) : null;
 
   const badges = currentUser ? [
     { icon: '🎯', label: 'חידון מושלם', earned: currentUser.history.some(h => h.gameType === 'QUIZ' && h.mistakes === 0 && h.totalItems > 0) },
@@ -621,7 +636,7 @@ const App: React.FC = () => {
           difficulty={currentUser?.difficulty || 2}
           onExit={() => setActiveGame('IDLE')}
           onFinish={handleFinishGame}
-          timedSeconds={75}
+          timedSeconds={(currentUser?.difficulty || 2) >= 4 ? 60 : (currentUser?.difficulty || 2) === 3 ? 75 : 90}
         />
       </div>
     );
@@ -723,6 +738,15 @@ const App: React.FC = () => {
             </div>
             <h3 className="text-[clamp(34px,11vw,46px)] gaming-font text-yellow-300">כל הכבוד! 🎉</h3>
             <p className="text-slate-300 text-sm">{gameResults.accuracy}% דיוק{gameResults.maxCombo >= 2 ? ` · קומבו הכי גבוה x${gameResults.maxCombo}` : ''}</p>
+            {gameResults.difficultyChange && (
+              <div className={`rounded-2xl p-3 border-2 text-sm font-black ${
+                gameResults.difficultyChange.direction === 'up' ? 'bg-yellow-400/20 border-yellow-400 text-yellow-200' : 'bg-sky-400/20 border-sky-400 text-sky-200'
+              }`} dir="rtl">
+                {gameResults.difficultyChange.direction === 'up'
+                  ? `⚡ עלית לרמה ${gameResults.difficultyChange.to}! ענית מעולה כמה משחקים ברצף`
+                  : `💙 עברנו לרמה ${gameResults.difficultyChange.to} כדי להתאמן בקצב שלך`}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center p-3 bg-black/20 rounded-2xl"><p className="text-slate-300 font-bold text-xs en-font">XP</p><p className="text-2xl font-black text-sky-300 en-font">+{gameResults.xpEarned}</p></div>
               <div className="text-center p-3 bg-black/20 rounded-2xl"><p className="text-slate-300 font-bold text-xs">ניקוד</p><p className="text-2xl font-black text-white en-font">{gameResults.score}</p></div>
@@ -761,6 +785,21 @@ const App: React.FC = () => {
               </div>
               <span className="text-3xl">🏆</span>
             </div>
+
+            {/* הצעת גיוון - מופיעה כשהילד תקוע על אותה "משפחת משחקים" היום, נעלמת
+                מעצמה ברגע שהוא משחק את ההצעה (הכלל שוב לא מתקיים) */}
+            {varietySuggestion && (
+              <div className="rounded-3xl p-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, #0ea5e9, #6366f1)' }} dir="rtl">
+                <div className="flex-1">
+                  <p className="text-sm font-black text-white">שיחקת הרבה באותו סוג משחק היום! 🎯</p>
+                  <p className="text-xs text-sky-100 mt-0.5">בוא ננסה גם {GAME_LABELS[varietySuggestion]} כדי להשלים את המשימה</p>
+                </div>
+                <button onClick={() => setActiveGame(varietySuggestion)}
+                  className="roblox-btn bg-white text-indigo-700 px-4 py-2 text-sm whitespace-nowrap">
+                  בואו! ▶️
+                </button>
+              </div>
+            )}
 
             {/* Game buttons */}
             <div className="grid grid-cols-2 gap-3">

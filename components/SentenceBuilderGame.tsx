@@ -70,9 +70,11 @@ export const SentenceBuilderGame: React.FC<SentenceBuilderGameProps> = ({ onExit
 
   const nextRound = () => {
     if (hasAdvancedRef.current) return;
-    hasAdvancedRef.current = true;
     clearAdvance(); clearRetry();
+    // הדגל נקבע רק בענף ה"המשך" - אחרת finishSession() (הענף האחר) היה רואה
+    // אותו כבר true ויוצא בלי לקרוא ל-onFinish, והסבב האחרון היה נתקע לצמיתות.
     if (roundIndex + 1 < ROUNDS_PER_SESSION) {
+      hasAdvancedRef.current = true;
       const next = buildWordTiles();
       setTarget(next.words);
       setBank(shuffleTiles(next.words));

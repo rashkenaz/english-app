@@ -73,9 +73,12 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
 
   const nextRound = () => {
     if (hasAdvancedRef.current) return;
-    hasAdvancedRef.current = true;
     clearAdvance(); clearRetry();
+    // הדגל נקבע רק בענף ה"המשך" - אם זה הסבב האחרון, finishSession() קובע אותו
+    // בעצמה. קביעה כאן ללא תנאי הייתה גורמת ל-finishSession לראות שכבר "התקדמנו"
+    // ולצאת מיד בלי לקרוא בכלל ל-onFinish - הסבב האחרון בכל סשן היה נתקע לצמיתות.
     if (roundIndex + 1 < ROUNDS_PER_SESSION) {
+      hasAdvancedRef.current = true;
       setRound(buildRound());
       setRoundIndex(i => i + 1);
       setIsCorrect(null);

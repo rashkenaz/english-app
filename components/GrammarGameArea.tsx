@@ -151,10 +151,12 @@ export const GrammarGameArea: React.FC<GrammarGameAreaProps> = ({ topicDisplayNa
 
   const handleNext = () => {
     if (hasAdvancedRef.current) return;
-    hasAdvancedRef.current = true;
     clearAdvanceTimer();
     clearRetryTimer();
+    // הדגל נקבע רק בענף ה"המשך" - אחרת finishSession() (הענף האחר) היה רואה אותו
+    // כבר true ויוצא בלי לקרוא ל-onFinish, והתרגיל האחרון בכל שיעור היה נתקע לצמיתות
     if (currentIndex + 1 < exercises.length) {
+      hasAdvancedRef.current = true;
       setCurrentIndex(prev => prev + 1);
       setIsCorrect(null);
       setSelectedOption(null);

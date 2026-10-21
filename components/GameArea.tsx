@@ -267,7 +267,9 @@ export const GameArea: React.FC<GameAreaProps> = ({ words, onFinish, onExit, gam
   }, [currentIndex, gameType, direction]);
 
   const initializeMemoryGame = () => {
-    const gameWords = words.slice(0, 6);
+    // מספר הזוגות עולה עם רמת הקושי - חלק מהקושי האדפטיבי, לא קבוע כמו שהיה
+    const pairs = difficulty <= 2 ? 4 : difficulty === 3 ? 6 : 8;
+    const gameWords = words.slice(0, pairs);
     const cards: MemoryCard[] = [];
     gameWords.forEach(w => {
       cards.push({ id: Math.random().toString(36), text: w.english, wordId: w.id, type: 'EN' });
@@ -314,10 +316,12 @@ export const GameArea: React.FC<GameAreaProps> = ({ words, onFinish, onExit, gam
 
   const handleNext = () => {
     if (hasAdvancedRef.current) return;
-    hasAdvancedRef.current = true;
     clearAdvanceTimer();
     clearRetryTimer();
+    // הדגל נקבע רק בענף ה"המשך" - אחרת finishSession() (הענף האחר) היה רואה אותו
+    // כבר true ויוצא בלי לקרוא ל-onFinish, והמילה האחרונה בכל סשן הייתה נתקעת לצמיתות
     if (currentIndex + 1 < words.length) {
+      hasAdvancedRef.current = true;
       setCurrentIndex(prev => prev + 1);
       setInputValue('');
       setIsCorrect(null);

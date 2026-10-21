@@ -53,9 +53,11 @@ export const SentenceGame: React.FC<SentenceGameProps> = ({ onExit, onFinish }) 
 
   const nextRound = () => {
     if (hasAdvancedRef.current) return;
-    hasAdvancedRef.current = true;
     clearAdvance(); clearRetry();
+    // הדגל נקבע רק בענף ה"המשך" - אחרת finishSession() (הענף האחר) היה רואה
+    // אותו כבר true ויוצא בלי לקרוא ל-onFinish, והסבב האחרון היה נתקע לצמיתות.
     if (roundIndex + 1 < ROUNDS_PER_SESSION) {
+      hasAdvancedRef.current = true;
       setRound(buildRound());
       setRoundIndex(i => i + 1);
       setIsCorrect(null);

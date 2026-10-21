@@ -17,6 +17,7 @@ export interface GameActivity {
   xpEarned: number;
   totalItems: number;
   missedCount: number;
+  isTargetedReview?: boolean; // true אם הסשן היה תרגול-טעויות/כתיבה ממוקד - לא נספר כסיגנל לקושי אדפטיבי
 }
 
 export interface UserProfile {
@@ -34,6 +35,7 @@ export interface UserProfile {
   dailyGoalCount: number; // כמה מילים/תרגילים ביעד היומי
   dailyProgressDate: string; // YYYY-MM-DD של ההתקדמות הנוכחית
   dailyProgressCount: number; // כמה כבר תורגלו היום
+  lastDifficultyChangeAt?: number; // היסטרזיס - שינוי קושי (אוטומטי או ידני) הבא דורש סשנים טריים אחרי זה
 }
 
 export interface WordEntry {
