@@ -423,7 +423,10 @@ const App: React.FC = () => {
       xp: newXp,
       level: Math.floor(newXp / 1000) + 1,
       dailyProgressDate: today,
-      dailyProgressCount: (isNewDay ? 0 : currentUser.dailyProgressCount) + totalItems,
+      // תרומת סשן בודד למשימה היומית מוגבלת ל-DAILY_GOAL: בלי זה, משחק אחד "גדול"
+      // כמו הסיפור (6 שאלות נכון/לא נכון + 15 מילים למיון = 21 פריטים בסשן אחד!)
+      // היה ממלא את כל היעד היומי (10) בבת אחת, אחרי פעילות אחת קצרה - לא זה הרעיון.
+      dailyProgressCount: (isNewDay ? 0 : currentUser.dailyProgressCount) + Math.min(totalItems, DAILY_GOAL),
       history: [{
         id: Math.random().toString(36).substr(2, 9),
         timestamp: Date.now(),
