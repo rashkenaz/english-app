@@ -15,6 +15,10 @@ dist-ssr
 # היסטוריית פרומפטים מקורית (AI Studio) - קובץ JSON גדול (~10MB), לא רלוונטי להרצה/build
 migrated_prompt_history
 
+# תמונות מקור של דמויות האווטאר ברזולוציה מלאה (~13MB) - שימשו רק לייצור חד-פעמי
+# של public/characters/*.jpg הדחוסות; האפליקציה לא צריכה אותן בזמן ריצה
+cartoon game character
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

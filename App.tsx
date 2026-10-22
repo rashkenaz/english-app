@@ -14,6 +14,7 @@ import { SoundCatcherGame } from './components/SoundCatcherGame';
 import { generateGrammarExercises } from './services/geminiService';
 import { CURRICULUM_VOCAB, NAMES } from './data/curriculum';
 import { computeDifficultyAdjustment, suggestVarietyGame, computeDailyMission } from './data/adaptiveLogic';
+import { CHARACTERS } from './data/characters';
 
 const INITIAL_WORDS_LIST: WordEntry[] = [
   { id: '1', english: 'Apple', hebrew: 'תפוח', masteryLevel: 0, lastSeen: Date.now(), createdAt: Date.now(), tags: [] },
@@ -54,6 +55,20 @@ const GAME_LABELS: Record<string, string> = {
 };
 
 const CURRICULUM_IMPORT_VERSION = 'v1';
+
+// מסך משחק (כל activeGame !== 'IDLE') מחליף לגמרי את ה-return של הדשבורד, כולל
+// הכותרת העליונה עם האווטאר - בלי זה הדמות הנבחרת הייתה נעלמת ברגע שנכנסים למשחק.
+// עטיפה אחת משותפת ל-12 המסכים השונים במקום להעתיק את התג הזה בכל קובץ משחק בנפרד.
+const GameScreenShell: React.FC<{ avatarSrc: string; children: React.ReactNode }> = ({ avatarSrc, children }) => (
+  <div className="min-h-screen p-3 sm:p-6">
+    <div className="max-w-lg mx-auto mb-2 flex justify-start">
+      <div className="w-11 h-11 rounded-full border-2 border-sky-400 shadow-lg overflow-hidden flex-shrink-0">
+        <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
+      </div>
+    </div>
+    {children}
+  </div>
+);
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -498,6 +513,14 @@ const App: React.FC = () => {
   const varietySuggestion = currentUser ? suggestVarietyGame(currentUser.history) : null;
   const dailyMission = currentUser ? computeDailyMission(currentUser.history, currentUser.difficulty, currentUser.currentStreak, currentUser.level) : null;
 
+  // כל עוד הילד לא בחר דמות, נופלים חזרה לפרצוף הלוגו (ההתנהגות הקודמת) - כך
+  // שמשתמשים קיימים לא "מאבדים" אווטאר עד שהם בוחרים דמות בעצמם.
+  const avatarSrc = currentUser?.avatarId ? (CHARACTERS.find(c => c.id === currentUser.avatarId)?.img || '/logo.png') : '/logo.png';
+  const selectAvatar = (id: string) => {
+    if (!currentUser) return;
+    setCurrentUser({ ...currentUser, avatarId: id });
+  };
+
   const badges = currentUser ? [
     { icon: '🎯', label: 'חידון מושלם', earned: currentUser.history.some(h => h.gameType === 'QUIZ' && h.mistakes === 0 && h.totalItems > 0) },
     { icon: '📚', label: '100 מילים', earned: words.length >= 100 },
@@ -549,44 +572,44 @@ const App: React.FC = () => {
 
   if (activeGame === 'GRAMMAR' && currentFocusTopic) {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <GrammarGameArea
           topicDisplayName={currentFocusTopic.displayNameHe}
           exercises={currentFocusTopic.exercises}
           onExit={() => setActiveGame('IDLE')}
           onFinish={handleFinishGame}
         />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'STORY') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <StoryGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'SENTENCES') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <SentenceGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'PHONICS') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <PhonicsGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'NAMES') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <GameArea
           words={namesAsWords}
           gameType="QUIZ"
@@ -596,13 +619,13 @@ const App: React.FC = () => {
           onFinish={handleFinishGame}
           silent
         />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'NAMEMATCH') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <GameArea
           words={nameMatchWords}
           gameType="MEMORY"
@@ -612,13 +635,13 @@ const App: React.FC = () => {
           onFinish={handleFinishGame}
           silent
         />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'QUIZRACE') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <GameArea
           words={words}
           gameType="QUIZ"
@@ -628,45 +651,45 @@ const App: React.FC = () => {
           onFinish={handleFinishGame}
           timedSeconds={(currentUser?.difficulty || 2) >= 4 ? 60 : (currentUser?.difficulty || 2) === 3 ? 75 : 90}
         />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'COLORLAB') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <ColorLabGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'SENTENCEBUILDER') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <SentenceBuilderGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'WORDHUNT') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <WordHuntGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame === 'SOUNDCATCHER') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <SoundCatcherGame onExit={() => setActiveGame('IDLE')} onFinish={handleFinishGame} />
-      </div>
+      </GameScreenShell>
     );
   }
 
   if (activeGame !== 'IDLE') {
     return (
-      <div className="min-h-screen p-3 sm:p-6">
+      <GameScreenShell avatarSrc={avatarSrc}>
         <GameArea
           words={filteredWords.length > 0 ? filteredWords : words}
           gameType={activeGame as 'FLASHCARDS' | 'SPELLING' | 'QUIZ' | 'MEMORY'}
@@ -676,7 +699,7 @@ const App: React.FC = () => {
           onFinish={handleFinishGame}
           onExampleGenerated={handleExampleGenerated}
         />
-      </div>
+      </GameScreenShell>
     );
   }
 
@@ -687,10 +710,11 @@ const App: React.FC = () => {
       <div className="p-3 sm:p-6 flex justify-between items-center gap-3">
         <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0">
-            {/* הלוגו המלא (public/logo.png) כולל טקסט וסצנה - בלי כלי חיתוך תמונה זמין במכונה הזו,
-                מתמקדים בפרצוף של הקמע דרך CSS (object-position + scale) בתוך מסגרת עגולה שחותכת */}
+            {/* כל עוד הילד לא בחר דמות, avatarSrc נופל חזרה ל-logo.png - שם צריך את
+                חיתוך ה-CSS הידני (אין כלי חיתוך תמונה זמין במכונה הזו) כדי למקד בפרצוף
+                הקמע מתוך התמונה המלאה; דמות נבחרת כבר מגיעה חתוכה כריבוע נקי. */}
             <div className="w-14 h-14 rounded-full border-2 border-sky-400 shadow-lg overflow-hidden">
-              <img src="/logo.png" alt="Avatar" className="w-full h-full object-cover" style={{ objectPosition: '52% 24%', transform: 'scale(1.8)' }} />
+              <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" style={currentUser?.avatarId ? undefined : { objectPosition: '52% 24%', transform: 'scale(1.8)' }} />
             </div>
             <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-slate-900 font-black px-2 py-0.5 rounded-full border-2 border-indigo-950 text-xs">רמה {currentUser?.level}</div>
           </div>
@@ -985,7 +1009,7 @@ const App: React.FC = () => {
       {activeTab === 'PROFILE' && currentUser && (
         <div className="p-3 sm:p-6 space-y-5 text-center">
           <div className="flex flex-col items-center gap-2">
-            <img src={currentUser.picture} alt="Avatar" className="w-28 h-28 rounded-3xl border-4 border-yellow-400 shadow-2xl" />
+            <img src={avatarSrc} alt="Avatar" className="w-28 h-28 rounded-3xl border-4 border-yellow-400 shadow-2xl object-cover" />
             <h2 className="text-2xl font-black text-white">{currentUser.name}</h2>
             <p className="text-sm text-slate-300">רמה {currentUser.level} · {words.length} מילים ברשימה</p>
             <div className="w-full max-w-xs flex items-center gap-2">
@@ -993,6 +1017,19 @@ const App: React.FC = () => {
                 <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500" style={{ width: `${(currentUser.xp % 1000) / 10}%` }} />
               </div>
               <span className="text-yellow-300 font-bold text-xs en-font">{currentUser.xp % 1000}/1000</span>
+            </div>
+          </div>
+
+          <div dir="rtl">
+            <h3 className="text-lg font-black text-white mb-3 text-right">בחר דמות 🎭</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {CHARACTERS.map(c => (
+                <button key={c.id} onClick={() => selectAvatar(c.id)}
+                  className={`roblox-btn flex flex-col items-center gap-1.5 p-2 ${currentUser.avatarId === c.id ? 'bg-yellow-400 border-yellow-600' : 'bg-indigo-900/60 border-indigo-950'}`}>
+                  <img src={c.img} alt={c.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20" />
+                  <span className={`text-xs font-black en-font ${currentUser.avatarId === c.id ? 'text-slate-900' : 'text-white'}`}>{c.name}</span>
+                </button>
+              ))}
             </div>
           </div>
 

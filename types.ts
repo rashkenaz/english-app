@@ -28,6 +28,7 @@ export interface UserProfile {
   picture?: string;
   xp: number;
   level: number;
+  avatarId?: string; // מזהה דמות נבחרת מתוך CHARACTERS (data/characters.ts) - אם לא נבחרה עדיין, נופלים חזרה ללוגו
   difficulty: number; // 1 to 5
   history: GameActivity[];
   currentStreak: number; // ימי רצף
