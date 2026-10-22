@@ -13,7 +13,7 @@ import { WordHuntGame } from './components/WordHuntGame';
 import { SoundCatcherGame } from './components/SoundCatcherGame';
 import { generateGrammarExercises } from './services/geminiService';
 import { CURRICULUM_VOCAB, NAMES } from './data/curriculum';
-import { computeDifficultyAdjustment, suggestVarietyGame } from './data/adaptiveLogic';
+import { computeDifficultyAdjustment, suggestVarietyGame, computeDailyMission } from './data/adaptiveLogic';
 
 const INITIAL_WORDS_LIST: WordEntry[] = [
   { id: '1', english: 'Apple', hebrew: 'תפוח', masteryLevel: 0, lastSeen: Date.now(), createdAt: Date.now(), tags: [] },
@@ -23,7 +23,6 @@ const INITIAL_WORDS_LIST: WordEntry[] = [
   { id: '5', english: 'Book', hebrew: 'ספר', masteryLevel: 0, lastSeen: Date.now(), createdAt: Date.now(), tags: [] },
 ];
 
-const DAILY_GOAL = 10;
 const WRITING_TAG = 'needs-writing';
 const REVIEW_TAG = 'needs-review';
 
@@ -202,9 +201,6 @@ const App: React.FC = () => {
         history: [],
         currentStreak: 1,
         lastActiveDate: todayStr(),
-        dailyGoalCount: DAILY_GOAL,
-        dailyProgressDate: todayStr(),
-        dailyProgressCount: 0,
       };
       setCurrentUser(newUser);
       setStage('ONBOARDING');
@@ -426,8 +422,6 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const earnedXp = Math.max(0, score - (mistakes * 20));
     const newXp = currentUser.xp + earnedXp;
-    const today = todayStr();
-    const isNewDay = currentUser.dailyProgressDate !== today;
     // סשן תרגול-טעויות/כתיבה ממוקד במכוון מרוכז במילים קשות - לא אמור למשוך
     // את הקושי האדפטיבי כלפי מטה כאילו זו רמת היכולת הכללית של הילד
     const isTargetedReview = filterMode === 'REVIEW' || filterMode === 'WRITING';
@@ -447,11 +441,6 @@ const App: React.FC = () => {
       ...currentUser,
       xp: newXp,
       level: Math.floor(newXp / 1000) + 1,
-      dailyProgressDate: today,
-      // תרומת סשן בודד למשימה היומית מוגבלת ל-DAILY_GOAL: בלי זה, משחק אחד "גדול"
-      // כמו הסיפור (6 שאלות נכון/לא נכון + 15 מילים למיון = 21 פריטים בסשן אחד!)
-      // היה ממלא את כל היעד היומי (10) בבת אחת, אחרי פעילות אחת קצרה - לא זה הרעיון.
-      dailyProgressCount: (isNewDay ? 0 : currentUser.dailyProgressCount) + Math.min(totalItems, DAILY_GOAL),
       history: newHistory,
       ...(difficultyAdjustment ? { difficulty: difficultyAdjustment.to, lastDifficultyChangeAt: Date.now() } : {}),
     };
@@ -474,7 +463,7 @@ const App: React.FC = () => {
       return w;
     }));
 
-    const accuracy = totalItems > 0 ? Math.round(((totalItems - missedIds.length) / totalItems) * 100) : 100;
+    const accuracy = totalItems > 0 ? Math.max(0, Math.round(((totalItems - missedIds.length) / totalItems) * 100)) : 100;
     const stars = accuracy >= 90 ? 3 : accuracy >= 70 ? 2 : 1;
     setGameResults({
       score, mistakes, xpEarned: earnedXp, missedIds, totalItems, maxCombo, accuracy, stars,
@@ -507,6 +496,7 @@ const App: React.FC = () => {
   const totalMissed = currentUser?.history.reduce((s, h) => s + (h.missedCount ?? h.mistakes), 0) || 0;
   const overallAccuracy = totalAttempted > 0 ? Math.max(0, Math.round(((totalAttempted - totalMissed) / totalAttempted) * 100)) : 0;
   const varietySuggestion = currentUser ? suggestVarietyGame(currentUser.history) : null;
+  const dailyMission = currentUser ? computeDailyMission(currentUser.history, currentUser.difficulty, currentUser.currentStreak, currentUser.level) : null;
 
   const badges = currentUser ? [
     { icon: '🎯', label: 'חידון מושלם', earned: currentUser.history.some(h => h.gameType === 'QUIZ' && h.mistakes === 0 && h.totalItems > 0) },
@@ -774,16 +764,32 @@ const App: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Daily mission */}
-            <div className="rounded-3xl px-5 py-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
-              <div className="flex-1">
-                <p className="text-base font-black text-amber-900">משימה יומית</p>
-                <p className="text-xs font-bold text-slate-900 mt-0.5">{Math.min(currentUser?.dailyProgressCount || 0, DAILY_GOAL)}/{DAILY_GOAL} תרגול מילים היום</p>
-                <div className="w-full h-2.5 bg-amber-900/20 rounded-full mt-2 overflow-hidden">
-                  <div className="h-full bg-slate-900/70 transition-all" style={{ width: `${Math.min(100, ((currentUser?.dailyProgressCount || 0) / DAILY_GOAL) * 100)}%` }} />
+            {/* Daily mission - נספר לפי מספר משפחות-משחק שונות שהושלמו היום בהצלחה
+                (לא פריטים גולמיים) - כדי שאי אפשר יהיה "לסיים" את המשימה ע"י חזרה
+                20 פעם על אותו משחק. היעד עצמו גדל עם הוותק/הקושי (computeRequiredDailyGames) */}
+            <div className="rounded-3xl px-5 py-4 flex flex-col gap-2" style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-base font-black text-amber-900">משימה יומית</p>
+                  {dailyMission && dailyMission.completedFamilies.length >= dailyMission.required ? (
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">🎉 השלמת את המשימה היום!</p>
+                  ) : (
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">{dailyMission?.completedFamilies.length || 0}/{dailyMission?.required || 3} משחקים שונים היום</p>
+                  )}
+                  <p className="text-[11px] font-semibold text-amber-900/70 mt-0.5" dir="rtl">כל משחק צריך להיות מסוג אחר, בהצלחה סבירה - והיעד גדל ככל שאתה מתקדם</p>
                 </div>
+                <span className="text-3xl">🏆</span>
               </div>
-              <span className="text-3xl">🏆</span>
+              <div className="w-full h-2.5 bg-amber-900/20 rounded-full overflow-hidden">
+                <div className="h-full bg-slate-900/70 transition-all" style={{ width: `${Math.min(100, ((dailyMission?.completedFamilies.length || 0) / (dailyMission?.required || 3)) * 100)}%` }} />
+              </div>
+              {dailyMission && dailyMission.completedFamilies.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {dailyMission.completedFamilies.map(fam => (
+                    <span key={fam} className="text-[10px] font-black bg-amber-900/15 text-amber-900 rounded-full px-2 py-0.5">✅ {GAME_LABELS[fam] || fam}</span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* הצעת גיוון - מופיעה כשהילד תקוע על אותה "משפחת משחקים" היום, נעלמת

@@ -9,7 +9,7 @@ const GAME_FAMILY: Record<string, string> = {
   QUIZ: 'QUIZ', QUIZRACE: 'QUIZ', NAMES: 'QUIZ',
   MEMORY: 'MEMORY', NAMEMATCH: 'MEMORY',
 };
-const familyOf = (gameType: string) => GAME_FAMILY[gameType] || gameType;
+export const familyOf = (gameType: string) => GAME_FAMILY[gameType] || gameType;
 
 const sessionAccuracy = (h: GameActivity): number => {
   if (h.totalItems <= 0) return 1;
@@ -51,7 +51,7 @@ export const computeDifficultyAdjustment = (
 // כמו startNamesGame/startQuizRace) - כדי שה-CTA של ההצעה יהיה תמיד תקין.
 const VARIETY_CANDIDATES: GameState['type'][] = ['SPELLING', 'STORY', 'SENTENCEBUILDER', 'QUIZ', 'MEMORY', 'PHONICS', 'WORDHUNT'];
 
-const todayKey = (ts: number) => new Date(ts).toISOString().slice(0, 10);
+export const todayKey = (ts: number) => new Date(ts).toISOString().slice(0, 10);
 
 // מחזיר משחק מוצע אם 3 הסשנים האחרונים של היום כולם מאותה משפחה, אחרת null.
 export const suggestVarietyGame = (history: GameActivity[]): GameState['type'] | null => {
@@ -76,4 +76,45 @@ export const suggestVarietyGame = (history: GameActivity[]): GameState['type'] |
     if (ts < oldestTs) { oldestTs = ts; oldest = c; }
   }
   return oldest;
+};
+
+// סשן "מזכה" למשימה היומית - חייב להיות בעל היקף משמעותי (לא יציאה מיידית)
+// ודיוק סביר, אחרת אפשר "לסמן וי" על כל סוגי המשחקים בלי באמת לתרגל.
+const isSuccessfulSession = (h: GameActivity): boolean =>
+  h.totalItems >= 3 && sessionAccuracy(h) >= 0.5;
+
+// היעד היומי גדל עם הניסיון של הילד - רצף ימים, רמת קושי, ורמת XP כוללת - כך
+// שהמשימה נשארת מאתגרת גם למי שכבר "ותיק וטוב" ולא רק 3 משחקים קבועים לתמיד.
+export const computeRequiredDailyGames = (
+  difficulty: number,
+  currentStreak: number,
+  level: number
+): number => {
+  let bonus = 0;
+  if (currentStreak >= 7) bonus++;
+  if (difficulty >= 3) bonus++;
+  if (level >= 5) bonus++;
+  return 3 + Math.min(2, bonus); // בסיס 3, גג 5
+};
+
+export interface DailyMission {
+  required: number;
+  completedFamilies: string[]; // משפחות משחק שהושלמו בהצלחה היום (לא כפולות)
+}
+
+// "משחקים שונים" נספר לפי משפחה (GAME_FAMILY) ולא gameType גולמי - אחרת חידון
+// רגיל ומרוץ חידון היו נספרים כשני משחקים "שונים" למרות שזה אותו תרגיל בפועל.
+export const computeDailyMission = (
+  history: GameActivity[],
+  difficulty: number,
+  currentStreak: number,
+  level: number
+): DailyMission => {
+  const today = todayKey(Date.now());
+  const todaysSuccesses = history.filter(h => todayKey(h.timestamp) === today && isSuccessfulSession(h));
+  const completedFamilies = Array.from(new Set(todaysSuccesses.map(h => familyOf(h.gameType))));
+  return {
+    required: computeRequiredDailyGames(difficulty, currentStreak, level),
+    completedFamilies,
+  };
 };

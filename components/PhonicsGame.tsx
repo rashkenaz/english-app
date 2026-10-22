@@ -39,11 +39,14 @@ export const PhonicsGame: React.FC<PhonicsGameProps> = ({ onExit, onFinish }) =>
   const advanceTimerRef = useRef<number | null>(null);
   const retryTimerRef = useRef<number | null>(null);
   const hasAdvancedRef = useRef(false);
+  // מונע שכמה ניסיונות שגויים על אותו סבב (לפני הצלחה) יספרו ככמה "פספוסים" -
+  // ראו הסבר מקביל ב-ColorLabGame.tsx
+  const hasMissedRoundRef = useRef(false);
 
   const clearAdvance = () => { if (advanceTimerRef.current !== null) { clearTimeout(advanceTimerRef.current); advanceTimerRef.current = null; } };
   const clearRetry = () => { if (retryTimerRef.current !== null) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; } };
   useEffect(() => () => { clearAdvance(); clearRetry(); }, []);
-  useEffect(() => { hasAdvancedRef.current = false; }, [roundIndex]);
+  useEffect(() => { hasAdvancedRef.current = false; hasMissedRoundRef.current = false; }, [roundIndex]);
 
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return;
@@ -102,7 +105,10 @@ export const PhonicsGame: React.FC<PhonicsGameProps> = ({ onExit, onFinish }) =>
       advanceTimerRef.current = window.setTimeout(() => { advanceTimerRef.current = null; nextRound(); }, 1500);
     } else {
       setMistakes(m => m + 1);
-      setMissed(prev => [...prev, round.word]);
+      if (!hasMissedRoundRef.current) {
+        hasMissedRoundRef.current = true;
+        setMissed(prev => [...prev, round.word]);
+      }
       setIsCorrect(false);
       setFeedback('נסו שוב 💪');
       clearRetry();

@@ -32,9 +32,6 @@ export interface UserProfile {
   history: GameActivity[];
   currentStreak: number; // ימי רצף
   lastActiveDate: string; // YYYY-MM-DD, לחישוב הרצף
-  dailyGoalCount: number; // כמה מילים/תרגילים ביעד היומי
-  dailyProgressDate: string; // YYYY-MM-DD של ההתקדמות הנוכחית
-  dailyProgressCount: number; // כמה כבר תורגלו היום
   lastDifficultyChangeAt?: number; // היסטרזיס - שינוי קושי (אוטומטי או ידני) הבא דורש סשנים טריים אחרי זה
 }
 
