@@ -100,14 +100,21 @@ const App: React.FC = () => {
   const [creatingTopic, setCreatingTopic] = useState(false);
   const grammarPhotoInputRef = useRef<HTMLInputElement>(null);
   const grammarSectionRef = useRef<HTMLDivElement>(null);
+  const grammarTopicInputRef = useRef<HTMLInputElement>(null);
+  const [highlightGrammarCard, setHighlightGrammarCard] = useState(false);
   const currentFocusTopic = grammarTopics.find(t => t.isCurrentFocus) || null;
 
   const openGrammarPractice = () => {
     if (currentFocusTopic) {
       setActiveGame('GRAMMAR');
     } else {
-      // אין עדיין נושא דקדוק פעיל - גוללים לכרטיס ההוספה במקום לפתוח משחק ריק
+      // אין עדיין נושא דקדוק פעיל - גוללים לכרטיס ההוספה במקום לפתוח משחק ריק.
+      // הוספת פוקוס+הדגשה זמנית כי סקרול שקט בלבד הרגיש "כלום לא קורה" בלחיצה -
+      // אין מסך משחק שנפתח, אז בלי אינדיקציה ברורה זה נראה כאילו הכפתור לא עובד.
       grammarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightGrammarCard(true);
+      setTimeout(() => grammarTopicInputRef.current?.focus(), 400);
+      setTimeout(() => setHighlightGrammarCard(false), 2000);
     }
   };
 
@@ -884,10 +891,11 @@ const App: React.FC = () => {
             )}
 
             {/* מה לומדים היום בכיתה */}
-            <div ref={grammarSectionRef} className="glass-panel p-5 rounded-3xl" dir="rtl">
+            <div ref={grammarSectionRef} className={`glass-panel p-5 rounded-3xl transition-all duration-300 ${highlightGrammarCard ? 'ring-4 ring-purple-400 glow-purple' : ''}`} dir="rtl">
               <h3 className="text-xl gaming-font text-white mb-3">מה לומדים היום בכיתה? 📝</h3>
               <div className="flex gap-2 mb-2">
                 <input
+                  ref={grammarTopicInputRef}
                   type="text"
                   value={topicInput}
                   onChange={(e) => setTopicInput(e.target.value)}

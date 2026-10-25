@@ -172,8 +172,10 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
               isCorrect === false && opt.en === selected ? 'ring-4 ring-red-400' : ''
             }`}
             style={{ backgroundColor: opt.hex, borderColor: opt.hex === '#FFFFFF' ? '#cbd5e1' : opt.hex }}>
-            {/* תווית באנגלית בכוונה - זו אפליקציה ללימוד אנגלית, התרגום לעברית לא מלמד את מילת הצבע באנגלית */}
-            <span className="text-sm sm:text-base font-black text-slate-900 bg-white/80 rounded-full px-3 py-1 en-font" dir="ltr">{opt.en.charAt(0).toUpperCase() + opt.en.slice(1)}</span>
+            {/* תווית באנגלית בכוונה - זו אפליקציה ללימוד אנגלית, התרגום לעברית לא מלמד את מילת הצבע באנגלית.
+                רקע אפור-לבן אטום (לא שקוף) ועם מסגרת דקה - כדי שהטקסט לא "יושב" על צבע הכפתור עצמו
+                ותמיד יהיה קריא, כולל מול כפתור הצבע הלבן עצמו. */}
+            <span className="text-sm sm:text-base font-black text-slate-900 bg-slate-100 border border-slate-300 rounded-full px-3 py-1 en-font shadow-sm" dir="ltr">{opt.en.charAt(0).toUpperCase() + opt.en.slice(1)}</span>
           </button>
         ))}
       </div>
