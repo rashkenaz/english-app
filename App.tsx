@@ -102,20 +102,23 @@ const App: React.FC = () => {
   const grammarSectionRef = useRef<HTMLDivElement>(null);
   const grammarTopicInputRef = useRef<HTMLInputElement>(null);
   const [highlightGrammarCard, setHighlightGrammarCard] = useState(false);
-  const currentFocusTopic = grammarTopics.find(t => t.isCurrentFocus) || null;
+  // כל נושא דקדוק שנוצר הופך לאריח קבוע משלו ברשימת המשחקים (כמו סיפור/משפטים/צבעים
+  // וכו') - לא "מיקוד נוכחי" יחיד שדורש לחזור לכרטיס ההקלדה כדי להחליף/לשחק בו.
+  const [selectedGrammarTopicId, setSelectedGrammarTopicId] = useState<string | null>(null);
+  const selectedGrammarTopic = grammarTopics.find(t => t.id === selectedGrammarTopicId) || null;
 
-  const openGrammarPractice = () => {
-    if (currentFocusTopic) {
-      setActiveGame('GRAMMAR');
-    } else {
-      // אין עדיין נושא דקדוק פעיל - גוללים לכרטיס ההוספה במקום לפתוח משחק ריק.
-      // הוספת פוקוס+הדגשה זמנית כי סקרול שקט בלבד הרגיש "כלום לא קורה" בלחיצה -
-      // אין מסך משחק שנפתח, אז בלי אינדיקציה ברורה זה נראה כאילו הכפתור לא עובד.
-      grammarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setHighlightGrammarCard(true);
-      setTimeout(() => grammarTopicInputRef.current?.focus(), 400);
-      setTimeout(() => setHighlightGrammarCard(false), 2000);
-    }
+  const playGrammarTopic = (id: string) => {
+    setSelectedGrammarTopicId(id);
+    setActiveGame('GRAMMAR');
+  };
+
+  const openAddGrammarTopic = () => {
+    // גוללים לכרטיס ההוספה ומדגישים אותו זמנית - בלי זה לחיצה על "הוסף נושא" הרגישה
+    // כמו "כלום לא קורה" (סקרול שקט בלבד, בלי מסך משחק שנפתח)
+    grammarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightGrammarCard(true);
+    setTimeout(() => grammarTopicInputRef.current?.focus(), 400);
+    setTimeout(() => setHighlightGrammarCard(false), 2000);
   };
 
   const speak = useCallback((text: string, lang: 'he' | 'en' = 'en') => {
@@ -402,7 +405,7 @@ const App: React.FC = () => {
         return;
       }
       const newTopic = buildGrammarTopic(topicInput.trim(), displayNameHe, exercises);
-      setGrammarTopics(prev => [newTopic, ...prev.map(t => ({ ...t, isCurrentFocus: false }))]);
+      setGrammarTopics(prev => [newTopic, ...prev]);
       setTopicInput('');
       speak(`Great! Let's practice ${displayNameHe}!`);
     } catch (error) {
@@ -426,7 +429,7 @@ const App: React.FC = () => {
         return;
       }
       const newTopic = buildGrammarTopic('מצילום מחברת', displayNameHe, exercises);
-      setGrammarTopics(prev => [newTopic, ...prev.map(t => ({ ...t, isCurrentFocus: false }))]);
+      setGrammarTopics(prev => [newTopic, ...prev]);
       speak(`Great! Let's practice ${displayNameHe}!`);
     } catch (error: any) {
       console.error(error);
@@ -436,9 +439,6 @@ const App: React.FC = () => {
     }
   };
 
-  const setFocusTopic = (id: string) => {
-    setGrammarTopics(prev => prev.map(t => ({ ...t, isCurrentFocus: t.id === id })));
-  };
 
   const handleFinishGame = (score: number, mistakes: number, missedIds: string[], totalItems: number, maxCombo: number) => {
     if (!currentUser) return;
@@ -577,12 +577,12 @@ const App: React.FC = () => {
     );
   }
 
-  if (activeGame === 'GRAMMAR' && currentFocusTopic) {
+  if (activeGame === 'GRAMMAR' && selectedGrammarTopic) {
     return (
       <GameScreenShell avatarSrc={avatarSrc}>
         <GrammarGameArea
-          topicDisplayName={currentFocusTopic.displayNameHe}
-          exercises={currentFocusTopic.exercises}
+          topicDisplayName={selectedGrammarTopic.displayNameHe}
+          exercises={selectedGrammarTopic.exercises}
           onExit={() => setActiveGame('IDLE')}
           onFinish={handleFinishGame}
         />
@@ -864,7 +864,15 @@ const App: React.FC = () => {
                   { onClick: () => setActiveGame('SOUNDCATCHER'), color: 'bg-cyan-500 border-cyan-700', emoji: '🎣', label: 'תופס צלילים' },
                   { onClick: startNameMatchGame, color: 'bg-purple-500 border-purple-700', emoji: '🧠', label: 'התאמת שמות' },
                   { onClick: startQuizRace, color: 'bg-orange-500 border-orange-700', emoji: '⏱️', label: 'מרוץ חידון' },
-                  { onClick: openGrammarPractice, color: 'bg-violet-500 border-violet-700', emoji: '📝', label: currentFocusTopic ? currentFocusTopic.displayNameHe : 'דקדוק' },
+                  // כל נושא דקדוק שנוצר מקבל אריח משלו, קבוע, בדיוק כמו כל משחק אחר -
+                  // לא "מיקוד נוכחי" יחיד שדורש לחזור לכרטיס ההקלדה כדי לשחק שוב.
+                  ...grammarTopics.map(t => ({
+                    onClick: () => playGrammarTopic(t.id),
+                    color: 'bg-violet-500 border-violet-700',
+                    emoji: '📝',
+                    label: t.displayNameHe,
+                  })),
+                  { onClick: openAddGrammarTopic, color: 'bg-violet-300 border-violet-500', emoji: '➕', label: 'נושא דקדוק חדש' },
                 ].map((g, i) => (
                   <button key={i} onClick={g.onClick} className={`roblox-btn ${g.color} flex flex-col items-center justify-center p-3 gap-1 text-white`}>
                     <span className="text-2xl">{g.emoji}</span>
@@ -890,9 +898,12 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* מה לומדים היום בכיתה */}
+            {/* הוספת נושא דקדוק חדש - לא "המיקוד הנוכחי": כל נושא שנוצר כאן מקבל אריח
+                קבוע משלו ברשימת המשחקים למעלה, אז הכרטיס הזה רק מוסיף נושא חדש ושום
+                דבר מעבר לזה (בלי פאנל "שיעור פעיל"/מתג בין נושאים - זה כפל מיותר ומבלבל
+                עם האריחים שכבר עושים את זה) */}
             <div ref={grammarSectionRef} className={`glass-panel p-5 rounded-3xl transition-all duration-300 ${highlightGrammarCard ? 'ring-4 ring-purple-400 glow-purple' : ''}`} dir="rtl">
-              <h3 className="text-xl gaming-font text-white mb-3">מה לומדים היום בכיתה? 📝</h3>
+              <h3 className="text-xl gaming-font text-white mb-3">הוסיפו נושא דקדוק חדש 📝</h3>
               <div className="flex gap-2 mb-2">
                 <input
                   ref={grammarTopicInputRef}
@@ -934,29 +945,6 @@ const App: React.FC = () => {
                 }}
               />
 
-              {currentFocusTopic && (
-                <div className="bg-purple-500/15 border-2 border-purple-400/40 rounded-2xl p-4 flex items-center justify-between gap-3 mb-2">
-                  <div>
-                    <p className="text-xs text-purple-200 font-bold">השיעור הפעיל עכשיו</p>
-                    <p className="text-lg font-black text-white">{currentFocusTopic.displayNameHe}</p>
-                  </div>
-                  <button onClick={() => setActiveGame('GRAMMAR')}
-                    className="roblox-btn bg-purple-500 border-purple-700 text-white px-4 py-3 text-sm whitespace-nowrap">
-                    תרגול השיעור 🧠
-                  </button>
-                </div>
-              )}
-
-              {grammarTopics.filter(t => !t.isCurrentFocus).length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {grammarTopics.filter(t => !t.isCurrentFocus).map(t => (
-                    <button key={t.id} onClick={() => setFocusTopic(t.id)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-black bg-white/10 text-slate-300 hover:bg-white/20">
-                      {t.displayNameHe}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Settings row */}

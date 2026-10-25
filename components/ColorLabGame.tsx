@@ -165,17 +165,18 @@ export const ColorLabGame: React.FC<ColorLabGameProps> = ({ onExit, onFinish }) 
       </div>
 
       <div className="grid grid-cols-4 gap-3 w-full">
+        {/* כפתורי התשובה בכוונה בצבע אחיד ונייטרלי (לא בגוון הצבע עצמו) - אחרת הילד
+            פשוט מתאים ויזואלית "איזה כפתור נראה כמו הצבע של האובייקט" בלי לקרוא/לדעת
+            את המילה באנגלית בכלל, וזה הופך את המשחק ללא מאתגר. */}
         {round.options.map((opt) => (
           <button key={opt.en} disabled={isCorrect !== null} onClick={() => choose(opt.en)}
-            className={`roblox-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 disabled:opacity-60 border-b-4 ${
-              isCorrect !== null && opt.en === round.target.en ? 'ring-4 ring-green-400' :
-              isCorrect === false && opt.en === selected ? 'ring-4 ring-red-400' : ''
-            }`}
-            style={{ backgroundColor: opt.hex, borderColor: opt.hex === '#FFFFFF' ? '#cbd5e1' : opt.hex }}>
-            {/* תווית באנגלית בכוונה - זו אפליקציה ללימוד אנגלית, התרגום לעברית לא מלמד את מילת הצבע באנגלית.
-                רקע אפור-לבן אטום (לא שקוף) ועם מסגרת דקה - כדי שהטקסט לא "יושב" על צבע הכפתור עצמו
-                ותמיד יהיה קריא, כולל מול כפתור הצבע הלבן עצמו. */}
-            <span className="text-sm sm:text-base font-black text-slate-900 bg-slate-100 border border-slate-300 rounded-full px-3 py-1 en-font shadow-sm" dir="ltr">{opt.en.charAt(0).toUpperCase() + opt.en.slice(1)}</span>
+            className={`roblox-btn aspect-square rounded-2xl flex items-center justify-center disabled:opacity-60 border-b-4 text-white ${
+              isCorrect !== null && opt.en === round.target.en ? 'bg-green-500 border-green-700' :
+              isCorrect === false && opt.en === selected ? 'bg-red-500 border-red-700' :
+              'bg-indigo-500 border-indigo-700'
+            }`}>
+            {/* תווית באנגלית בכוונה - זו אפליקציה ללימוד אנגלית, התרגום לעברית לא מלמד את מילת הצבע באנגלית */}
+            <span className="text-base sm:text-lg font-black en-font" dir="ltr">{opt.en.charAt(0).toUpperCase() + opt.en.slice(1)}</span>
           </button>
         ))}
       </div>
