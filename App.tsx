@@ -106,6 +106,11 @@ const App: React.FC = () => {
   // וכו') - לא "מיקוד נוכחי" יחיד שדורש לחזור לכרטיס ההקלדה כדי להחליף/לשחק בו.
   const [selectedGrammarTopicId, setSelectedGrammarTopicId] = useState<string | null>(null);
   const selectedGrammarTopic = grammarTopics.find(t => t.id === selectedGrammarTopicId) || null;
+  // רק הכי-חדשים מקבלים אריח גדול ברשת הראשית (אחרת היא גדלה ללא גבול לאורך שנת
+  // לימודים); הישנים יותר עדיין נגישים בלחיצה אחת, רק דרך רשימה קצרה ולא אריח גדול.
+  const RECENT_GRAMMAR_TILES = 4;
+  const recentGrammarTopics = grammarTopics.slice(0, RECENT_GRAMMAR_TILES);
+  const olderGrammarTopics = grammarTopics.slice(RECENT_GRAMMAR_TILES);
 
   const playGrammarTopic = (id: string) => {
     setSelectedGrammarTopicId(id);
@@ -198,9 +203,14 @@ const App: React.FC = () => {
     }
   }, [words, currentUser]);
 
-  // שמירת נושאי הדקדוק של "השיעור של היום"
+  // שמירת נושאי הדקדוק של "השיעור של היום". תנאי grammarTopics.length > 0 (כמו
+  // ב-effect השמירה של words למעלה) בכוונה - בלעדיו, ה-effect הזה כותב "[]" פעם
+  // אחת עם ה-state הראשוני לפני שה-effect הטעינה (useEffect אחר, [currentUser?.id])
+  // הספיק להחזיר את הנתונים האמיתיים מה-localStorage - מרוץ קלאסי בין שני effects
+  // שבד"כ "מתרפא" לבד ברינדור הבא, אבל ב-StrictMode (dev) effects מופעלים פעמיים
+  // ברצף טרם רינדור ביניים, אז הכתיבה הריקה דורסת את מה שנטען בפועל לצמיתות.
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && grammarTopics.length > 0) {
       localStorage.setItem(`eq_grammar_${currentUser.id}`, JSON.stringify(grammarTopics));
     }
   }, [grammarTopics, currentUser]);
@@ -854,27 +864,32 @@ const App: React.FC = () => {
               <h3 className="text-sm font-black text-slate-300 mb-2" dir="rtl">עוד מהמחברת 📒</h3>
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { onClick: () => setActiveGame('STORY'), color: 'bg-amber-500 border-amber-700', emoji: '📖', label: 'סיפור' },
-                  { onClick: () => setActiveGame('SENTENCES'), color: 'bg-teal-500 border-teal-700', emoji: '✍️', label: 'משפטים' },
-                  { onClick: startNamesGame, color: 'bg-fuchsia-500 border-fuchsia-700', emoji: '🏷️', label: 'שמות' },
-                  { onClick: () => setActiveGame('PHONICS'), color: 'bg-rose-500 border-rose-700', emoji: '🔤', label: 'צלילים' },
-                  { onClick: () => setActiveGame('COLORLAB'), color: 'bg-pink-500 border-pink-700', emoji: '🎨', label: 'צבעים' },
-                  { onClick: () => setActiveGame('SENTENCEBUILDER'), color: 'bg-indigo-500 border-indigo-700', emoji: '🧩', label: 'סדר משפט' },
-                  { onClick: () => setActiveGame('WORDHUNT'), color: 'bg-red-500 border-red-700', emoji: '🔍', label: 'ציד מילים' },
-                  { onClick: () => setActiveGame('SOUNDCATCHER'), color: 'bg-cyan-500 border-cyan-700', emoji: '🎣', label: 'תופס צלילים' },
-                  { onClick: startNameMatchGame, color: 'bg-purple-500 border-purple-700', emoji: '🧠', label: 'התאמת שמות' },
-                  { onClick: startQuizRace, color: 'bg-orange-500 border-orange-700', emoji: '⏱️', label: 'מרוץ חידון' },
-                  // כל נושא דקדוק שנוצר מקבל אריח משלו, קבוע, בדיוק כמו כל משחק אחר -
-                  // לא "מיקוד נוכחי" יחיד שדורש לחזור לכרטיס ההקלדה כדי לשחק שוב.
-                  ...grammarTopics.map(t => ({
+                  // נושאי הדקדוק קודמים לכל שאר האריחים בכוונה - נושא חדש שנוצר אמור
+                  // להיות הדבר הראשון שרואים, לא קבור בסוף הרשימה (grammarTopics כבר
+                  // ממוין מהחדש לישן כי createGrammarTopic עושה [newTopic, ...prev]).
+                  // רק ה-RECENT_GRAMMAR_TILES החדשים ביותר מקבלים אריח גדול - אחרת
+                  // הרשת הייתה גדלה ללא גבול לאורך שנת לימודים; נושאים ישנים יותר
+                  // זמינים כרשימה קצרה בכרטיס ההוספה (לא נעלמים, רק לא תופסים אריח).
+                  ...recentGrammarTopics.map(t => ({
+                    key: `topic_${t.id}`,
                     onClick: () => playGrammarTopic(t.id),
                     color: 'bg-violet-500 border-violet-700',
                     emoji: '📝',
                     label: t.displayNameHe,
                   })),
-                  { onClick: openAddGrammarTopic, color: 'bg-violet-300 border-violet-500', emoji: '➕', label: 'נושא דקדוק חדש' },
-                ].map((g, i) => (
-                  <button key={i} onClick={g.onClick} className={`roblox-btn ${g.color} flex flex-col items-center justify-center p-3 gap-1 text-white`}>
+                  { key: 'add_topic', onClick: openAddGrammarTopic, color: 'bg-violet-300 border-violet-500', emoji: '➕', label: 'נושא דקדוק חדש' },
+                  { key: 'story', onClick: () => setActiveGame('STORY'), color: 'bg-amber-500 border-amber-700', emoji: '📖', label: 'סיפור' },
+                  { key: 'sentences', onClick: () => setActiveGame('SENTENCES'), color: 'bg-teal-500 border-teal-700', emoji: '✍️', label: 'משפטים' },
+                  { key: 'names', onClick: startNamesGame, color: 'bg-fuchsia-500 border-fuchsia-700', emoji: '🏷️', label: 'שמות' },
+                  { key: 'phonics', onClick: () => setActiveGame('PHONICS'), color: 'bg-rose-500 border-rose-700', emoji: '🔤', label: 'צלילים' },
+                  { key: 'colorlab', onClick: () => setActiveGame('COLORLAB'), color: 'bg-pink-500 border-pink-700', emoji: '🎨', label: 'צבעים' },
+                  { key: 'sentencebuilder', onClick: () => setActiveGame('SENTENCEBUILDER'), color: 'bg-indigo-500 border-indigo-700', emoji: '🧩', label: 'סדר משפט' },
+                  { key: 'wordhunt', onClick: () => setActiveGame('WORDHUNT'), color: 'bg-red-500 border-red-700', emoji: '🔍', label: 'ציד מילים' },
+                  { key: 'soundcatcher', onClick: () => setActiveGame('SOUNDCATCHER'), color: 'bg-cyan-500 border-cyan-700', emoji: '🎣', label: 'תופס צלילים' },
+                  { key: 'namematch', onClick: startNameMatchGame, color: 'bg-purple-500 border-purple-700', emoji: '🧠', label: 'התאמת שמות' },
+                  { key: 'quizrace', onClick: startQuizRace, color: 'bg-orange-500 border-orange-700', emoji: '⏱️', label: 'מרוץ חידון' },
+                ].map((g) => (
+                  <button key={g.key} onClick={g.onClick} className={`roblox-btn ${g.color} flex flex-col items-center justify-center p-3 gap-1 text-white`}>
                     <span className="text-2xl">{g.emoji}</span>
                     <span className="font-black text-[11px] text-center">{g.label}</span>
                   </button>
@@ -945,6 +960,21 @@ const App: React.FC = () => {
                 }}
               />
 
+              {/* נושאים ישנים יותר שירדו מהאריחים הגדולים (ראו RECENT_GRAMMAR_TILES) -
+                  עדיין נגישים בלחיצה אחת ישירות לתרגול, רק כרשימה קומפקטית ולא אריח גדול */}
+              {olderGrammarTopics.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <p className="text-xs text-slate-400 font-bold mb-2">נושאים ישנים יותר</p>
+                  <div className="flex flex-wrap gap-2">
+                    {olderGrammarTopics.map(t => (
+                      <button key={t.id} onClick={() => playGrammarTopic(t.id)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-black bg-white/10 text-slate-300 hover:bg-white/20">
+                        📝 {t.displayNameHe}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Settings row */}
